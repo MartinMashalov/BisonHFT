@@ -1,0 +1,1 @@
+{"model_params": [{"years": 3, "window": 42, "wavelet": "sym6", "days": 3}, {"years": 3, "window": 84, "wavelet": "coif7", "days": 6}, {"years": 3, "window": 98, "wavelet": "rbio2.8", "days": 7}]}
