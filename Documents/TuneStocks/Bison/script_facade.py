@@ -1,6 +1,10 @@
+import time
 from twilio.rest import Client
-from twilio.base.exceptions import TwilioRestException
 import pywt
+import logging
+logging.basicConfig()
+logger = logging.getLogger('my-logger')
+logger.setLevel(logging.ERROR)
 from sklearn.preprocessing import quantile_transform
 import yfinance as yf
 from datetime import datetime
@@ -8,7 +12,7 @@ import pandas as pd
 from scipy.stats import ttest_ind, mannwhitneyu
 import pandas_ta as pd_ta
 import numpy as np
-from bison_create import create_model ########
+from bison_create import create_model
 from fetch_alpaca_data import fetch_alpaca_csv
 from sklearn.metrics import balanced_accuracy_score, f1_score, accuracy_score, roc_auc_score
 from datetime import timedelta
@@ -28,14 +32,14 @@ np.random.seed(42)
 
 # create twilio client message service
 class ScriptVars(BaseModel):
-    client: Any = Client("ACc1bed78b0232d6d560de1e79680651bb", 'a74d27c9a2f983bd4d14e3cd9f859520')
+    client: Any = Client("AC0d79e56293d4494c36eee4f48a59ff8e", 'f1e24705d7289d4b6d680c8c04beb484')
     version: str = '1.06'
     confidence_threshold: float = 0.9
     symbol: str = 'SPY'
     interval: str = '30m'
     lookback: int = 14
     shuffle_split: bool = True
-    bot_phone_num: str = "+19088665421"
+    bot_phone_num: str = "+15706725011"
     bot_phone_contacts: list = ["+19142822807", "+19145126792"]
 
 # create instance of base model for configurations on general Bison level
@@ -297,9 +301,6 @@ def run(years=None, wavelet=None):
     timestamps = data[data['day'] == datetime.today().strftime('%Y-%m-%d')]['timestamp']
     return X, timestamps
 
-# main program to run prediction and sms sent
-send_messages: bool = False
-
 # get current strike price
 current_strike = yf.download('SPY', interval='1m', period='1d')['Close'][-2]
 print('Current Strike Price: ', current_strike)
@@ -307,15 +308,20 @@ lower_strike, higher_strike = current_strike-3, current_strike+3
 
 def main():
     """main runner function"""
-    for param_set in param_sets:
+    # main program to run prediction and sms sent
+    send_messages: bool = False
+    i1 = 1
+    i2 = 2
+    threshold_95 = False
+    for param_set in param_sets[i1:i2]:
         # import BisonML model
         print(param_set)
         days = param_set['days']
         model, accuracy, live_preds = create_model(param_set['years'], param_set['window'], param_set['wavelet'],
                                                     facade=True)
-
         # upgrade threshold for lower accuracy models
-        if accuracy < 0.8:
+        if accuracy < 0.8 or threshold_95:
+            print('in threshold change')
             general_configs.confidence_threshold = 0.95
 
         # change the threshold if presented with too many high confidence trades
@@ -328,6 +334,9 @@ def main():
         live_predictions = live_predictions[(live_predictions['strikes'] > lower_strike) &
                                             (live_predictions['strikes'] < higher_strike)]
         live_predictions.reset_index(inplace=True)
+        live_predictions['day'] = live_predictions['start_date'].apply(lambda x: str(x).split(' ')[0])
+        live_predictions = live_predictions[live_predictions['day'].isin(live_predictions['day'].unique()[-1:]
+                                                                         )].drop('day', axis=1)
         live_predictions.to_csv("live_preds_test.csv")
         print(live_predictions[['trading_window', 'trend', 'prob', 'strikes', 'start_date']])
 
@@ -337,6 +346,8 @@ def main():
     MODEL ACC SUMMARY: {round(100*accuracy, 2)}% \nTRADING WINDOW: {days}D 
     ----------------------- \n 
                           """
+        if send_messages:
+            send_sms(message_body)
         for index, row in live_predictions.iterrows():
             sub_message = f"""
     Trend: {row['trend']}
@@ -346,24 +357,9 @@ def main():
     Conf: {round(100*row['prob'], 1)}% 
     ----------------------- \n 
                           """
-            if (index+1) % 3 == 0:
-                # send message with trading information
-                try:
-                    if send_messages:
-                        send_sms(message_body)
-                except TwilioRestException:
-                    continue
-                message_body = ""
-            else:
-                message_body += sub_message
-        try:
             if send_messages:
-                send_sms(message_body)
-        except TwilioRestException:
-            pass
+                send_sms(sub_message)
         # save prediction table for future reference
-        live_predictions.to_csv(f"intraday_model_preds/{live_predictions['start_date'].iloc[-1]}_pred.csv")
+        live_predictions.to_csv(f"intraday_model_preds/{live_predictions['start_date'].iloc[-1]}_pred_{days}D.csv")
 
 main()
-
-#create_model_local(years=3, trend=98, wavelet='rbio2.8')

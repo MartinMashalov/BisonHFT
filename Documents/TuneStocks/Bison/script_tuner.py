@@ -13,7 +13,6 @@ from json import dump
 null_wavelets: list = ["cgau1", "cgau2", "cgau3", "cgau4", "cgau5", "cgau6", "cgau7", "cgau8", "cmor", "fbsp",
                 "gaus1", "gaus2", "gaus3", "gaus4", "gaus5", "gaus6", "gaus7", "gaus8", "mexh", "morl", "shan"]
 
-
 class TuningConfigs(BaseModel):
     """tuning configuration variables for NNI tuner"""
     internal_search_space_estimators: dict = {
@@ -37,10 +36,9 @@ class TuningConfigs(BaseModel):
     }
     tuner: str = 'Random'
     max_trials: int = 5000
-    concurrent_trials: int = 4
+    concurrent_trials: int = 6
     max_duration: str = '2h'
     web_host: str = 'local'
-
 
 # initialize variable for configuration base model
 tuner_configs = TuningConfigs()
@@ -77,7 +75,7 @@ def parameter_facade(experiment, file_name: str) -> None:
 
     # store in a configuration file
     with open(file_name, 'w') as config_file:
-        dump({'model_params': best_params}, config_file, indent='')
+        dump({'model_params': best_params}, config_file, indent=' ')
 
 def run_nni(tuning_type: str, default_name: str = 'FreeRangeBison'):
     """run nni tuner main function"""
@@ -116,7 +114,7 @@ def run_nni(tuning_type: str, default_name: str = 'FreeRangeBison'):
 
     # run NNI experiment
     try:
-        experiment.run(port=8080, wait_completion=True)
+        experiment.run(port=8000, wait_completion=True)
     except AssertionError:
         parameter_facade(experiment, file_name)
         return

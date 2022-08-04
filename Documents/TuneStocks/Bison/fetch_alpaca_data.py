@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 # create starting timestamps
 years = 25
-end = (date.today()-timedelta(days=1)).strftime("%Y-%m-%d")
+end = (date.today()-timedelta(days=0)).strftime("%Y-%m-%d")
 date_1 = datetime.strptime(end, "%Y-%m-%d")
 start_1 = date_1 - timedelta(days=365*years)
 start = str(start_1).replace(' 00:00:00', '')

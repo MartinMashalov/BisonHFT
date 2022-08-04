@@ -29,8 +29,8 @@ header = ['test_acc', 'live_acc']
 
 params: dict = {
     'years': 3,
-    'wavelet': 'sym6',
-    'window': 42
+    'wavelet': 'coif3',
+    'window': 70
 }
 optimized_params = nni.get_next_parameter()
 params.update(optimized_params)
@@ -290,6 +290,19 @@ def create_model(years=params['years'], trend=params['window'], wavelet=params['
     X_train, X_test, y_train, y_test = train_test_split(data[features], data[target],
                                                         test_size=test_ratio, random_state=42)
 
+    # transform distributions into the normal distribution to standardize training-testing-live samples
+    live_data = live_data[features]
+    transform: bool = True
+    if transform:
+        output_dist = 'uniform'
+        train_trans = quantile_transform(X_train, output_distribution=output_dist, n_quantiles=len(X_train))
+        test_trans = quantile_transform(X_test, output_distribution=output_dist, n_quantiles=len(X_train))
+        live_trans = quantile_transform(live_data, output_distribution=output_dist, n_quantiles=len(X_train))
+        for i, col in enumerate(X_train.columns):
+            X_train[col] = train_trans[:, i]
+            X_test[col] = test_trans[:, i]
+            live_data[col] = live_trans[:, i]
+
     # get ranges of feature variables to check for out-of-sample predictions
     rsi_range = [X_train['rsi'].min(), X_train['rsi'].max()]
     macd_range = [X_train['macd'].min(), X_train['macd'].max()]
@@ -301,17 +314,6 @@ def create_model(years=params['years'], trend=params['window'], wavelet=params['
     ratio = Counter(y_train)
     scale_pos_weight = max(ratio.values()) / min(ratio.values())
     print(scale_pos_weight)
-
-    # transform distributions into the normal distribution to standardize training-testing-live samples
-    live_data = live_data[features]
-    output_dist = 'uniform'
-    train_trans = quantile_transform(X_train, output_distribution=output_dist, n_quantiles=len(X_train))
-    test_trans = quantile_transform(X_test, output_distribution=output_dist, n_quantiles=len(X_train))
-    live_trans = quantile_transform(live_data, output_distribution=output_dist, n_quantiles=len(X_train))
-    for i, col in enumerate(X_train.columns):
-        X_train[col] = train_trans[:, i]
-        X_test[col] = test_trans[:, i]
-        live_data[col] = live_trans[:, i]
 
     # create and train xgboost decision tree model
     model = XGBClassifier(scale_pos_weight=scale_pos_weight, seed=42).fit(X_train, y_train)
@@ -356,9 +358,11 @@ def create_model(years=params['years'], trend=params['window'], wavelet=params['
                                                               'willr', 'obv', 'proc', 'stoch_k']].iloc[i],
                                                    ranges, training_data_boundaries)
                              for i in range(live_data.shape[0])]
+    live_data['day'] = live_data['date'].apply(lambda x: str(x).split(' ')[0])
+    live_data = live_data[live_data['day'].isin(live_data['day'].unique()[-3:])].drop('day', axis=1)
     live_data.rename(columns={'pred': 'trend', 'date': 'start_date'}, inplace=True)
-
     if not facade:
+        live_data.to_csv('live_data_backtest.csv')
         print(live_data[['window', 'trend', 'start_date', 'prob', 'strikes']][live_data['prob'] > 0.9])
 
     # report the NNI console
@@ -370,6 +374,7 @@ def create_model(years=params['years'], trend=params['window'], wavelet=params['
             features], X_train, X_test, y_train, y_test, data
     else:
         return model, accuracy_score(list(y_test), list(rf_prediction)), \
-               live_data[['trend', 'prob', 'strikes', 'start_date']]
+               live_data[['window', 'trend', 'start_date', 'prob', 'strikes']][live_data['prob'] > 0.9]
 
-create_model()
+#create_model()
+#create_model(years=4, trend=98, wavelet='coif12')

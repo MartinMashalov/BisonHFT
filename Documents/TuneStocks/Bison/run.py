@@ -11,10 +11,10 @@ from fetch_alpaca_data import fetch_action
 schedule.every().day.at('09:35').do(main)
 
 # get new data for the day
-schedule.every().day.at('16:15').do(fetch_action)
+schedule.every().day.at('16:30').do(fetch_action)
 
 # set schedule for tuner and re-trainer
-schedule.every().day.at('20:00').do(run_nni, 'base')
+schedule.every().day.at('17:00').do(run_nni, 'base')
 
 # set schedule for final training of the model
 with open('model_configs.json', 'r') as config_file:
