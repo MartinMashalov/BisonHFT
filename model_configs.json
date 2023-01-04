@@ -1,0 +1,22 @@
+{
+ "model_params": [
+  {
+   "years": 11,
+   "window": 84,
+   "wavelet": "bior3.9",
+   "days": 6
+  },
+  {
+   "years": 11,
+   "window": 84,
+   "wavelet": "bior2.8",
+   "days": 6
+  },
+  {
+   "years": 11,
+   "window": 84,
+   "wavelet": "db25",
+   "days": 6
+  }
+ ]
+}
